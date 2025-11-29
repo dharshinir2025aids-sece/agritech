@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vegetable Price Tracker with Expert Advice</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:Arial, sans-serif; background:linear-gradient(135deg,#4CAF50,#8BC34A); min-height:100vh; display:flex; justify-content:center; align-items:center; padding:20px; }
+#app { background:white; border-radius:10px; box-shadow:0 4px 6px rgba(0,0,0,0.1); padding:2rem; min-width:300px; max-width:900px; width:100%; }
+.screen { text-align:center; }
+.hidden { display:none; }
+h1 { margin-bottom:2rem; color:#2E7D32; }
+button { background:#4CAF50; color:white; border:none; padding:12px 24px; margin:10px; border-radius:5px; cursor:pointer; font-size:16px; }
+button:hover { background:#45a049; }
+.back-btn { background:#757575; margin-bottom:20px; }
+.back-btn:hover { background:#616161; }
+input, select { width:100%; padding:12px; margin:10px 0; border:1px solid #ddd; border-radius:5px; font-size:16px; }
+.vegetable-card { border:1px solid #ddd; border-radius:10px; padding:15px; background:#f9f9f9; cursor:pointer; transition:transform 0.2s; }
+.vegetable-card:hover { transform:translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,0.1); }
+#vegetables-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:20px; margin-top:20px; }
+#chat-messages { height:300px; overflow-y:auto; border:1px solid #ddd; border-radius:10px; padding:15px; margin:20px 0; background:#fafafa; text-align:left; }
+.chat-bubble { max-width:70%; padding:10px 15px; border-radius:15px; margin-bottom:5px; }
+.bubble-user { background:#4CAF50; color:white; align-self:flex-end; }
+.bubble-expert { background:#2196F3; color:white; font-weight:bold; align-self:flex-start; }
+.bubble-other { background:#e0e0e0; color:black; }
+.bubble-system { background:#f0f0f0; color:#666; font-style:italic; text-align:center; }
+.timestamp { font-size:10px; color:#555; margin-bottom:10px; }
+</style>
+</head>
+
+<body>
+<div id="app">
+
+<!-- Language Selection -->
+<div id="language-selection" class="screen">
+<h1>🥬 Vegetable Price Tracker</h1>
+<p style="margin-bottom:20px;color:#666;">Select Language / மொழியைத் தேர்ந்தெடுக்கவும்</p>
+<button onclick="selectLanguage('en')">🇬🇧 English</button>
+<button onclick="selectLanguage('ta')">🇮🇳 தமிழ்</button>
+</div>
+
+<!-- Role Selection -->
+<div id="role-selection" class="screen hidden">
+<button onclick="goBack()" class="back-btn">← Back</button>
+<h1 id="role-title">👥 Select Your Role</h1>
+<button onclick="selectRole('marketer')">📊 Marketer</button>
+<button onclick="selectRole('farmer')">🌾 Farmer</button>
+<button onclick="selectRole('expert-advice')" style="background:#FF9800;">🎓 Expert Advice</button>
+</div>
+
+<!-- Expert or Farmer Advice Selection -->
+<div id="expert-role-selection" class="screen hidden">
+<button onclick="goBack()" class="back-btn">← Back</button>
+<h1>Choose Role</h1>
+<button onclick="selectExpertRole('expert')" style="background:#2196F3;">👨🔬 Expert</button>
+<button onclick="selectExpertRole('farmer-advice')">🌾 Farmer</button>
+</div>
+
+<!-- Expert Login -->
+<div id="expert-login" class="screen hidden">
+<button onclick="goBack()" class="back-btn">← Back</button>
+<h1>🔐 Expert Login</h1>
+<form onsubmit="expertLogin(event)">
+<input type="text" id="expert-username" placeholder="Enter expert username" required>
+<input type="password" id="expert-password" placeholder="Enter expert password" required>
+<button type="submit">🚀 Login</button>
+</form>
+<p class="demo-info">Demo: expert / expert123</p>
+</div>
+
+<!-- Price Display -->
+<div id="price-display" class="screen hidden">
+<button onclick="goBack()" class="back-btn">← Back</button>
+<h1>💰 Vegetable Prices</h1>
+<div id="vegetables-grid"></div>
+</div>
+
+<!-- Chat Interface -->
+<div id="chat-interface" class="screen hidden">
+<button onclick="goBack()" class="back-btn">← Back</button>
+<h1 id="chat-title">💬 Chat</h1>
+<div id="chat-messages" style="display:flex;flex-direction:column;"></div>
+
+<div style="display:flex;gap:10px;">
+<input type="text" id="chat-input" placeholder="Type your message..." style="flex:1;">
+<button onclick="sendMessage()">📤 Send</button>
+</div>
+</div>
+
+</div>
+
+<script>
+let currentLanguage = 'en';
+let currentRole = '';
+let screenHistory = [];
+let chatMessages = [];
+let isExpert = false;
+
+const vegetables = [
+{ name:{ en:'Tomato', ta:'தக்காளி' }, image:'🍅', basePrice:45 },
+{ name:{ en:'Potato', ta:'உருளைக்கிழங்கு' }, image:'🥔', basePrice:35 },
+{ name:{ en:'Onion', ta:'வெங்காயம்' }, image:'🧅', basePrice:40 },
+{ name:{ en:'Green Chilli', ta:'பச்சை மிளகாய்' }, image:'🌶', basePrice:80 },
+{ name:{ en:'Ladyfinger', ta:'வெண்டைக்காய்' }, image:'🫛', basePrice:55 }
+];
+
+function selectLanguage(lang){
+currentLanguage = lang;
+showScreen('role-selection');
+}
+
+function selectRole(role){
+currentRole = role;
+if(role === 'expert-advice'){
+showScreen('expert-role-selection');
+}else{
+showPrices();
+}
+}
+
+function selectExpertRole(role){
+isExpert = role === 'expert';
+if(isExpert){
+showScreen('expert-login');
+}else{
+startFarmerChat('Soil Expert Ilamaran'); // default connection for demo
+}
+}
+
+function expertLogin(e){
+e.preventDefault();
+const u = document.getElementById('expert-username').value;
+const p = document.getElementById('expert-password').value;
+if(u==='expert' && p==='expert123'){
+startExpertChat('Soil Expert Ilamaran');
+}else{
+alert("❌ Invalid Expert Credentials");
+}
+}
+
+function showPrices(){
+showScreen('price-display');
+displayVegetables();
+}
+
+function displayVegetables(){
+const grid = document.getElementById('vegetables-grid');
+if(!grid) return;
+grid.innerHTML='';
+vegetables.forEach((veg,i)=>{
+const price = Math.max(20, veg.basePrice + (Math.random()-0.5)*20).toFixed(2);
+const card=document.createElement('div');
+card.className='vegetable-card';
+card.innerHTML=`
+<div style="font-size:48px;">${veg.image}</div>
+<h3>${veg.name[currentLanguage]}</h3>
+<p class="price">₹${price}/${currentLanguage==='ta'?'கிலோ':'kg'}</p>
+<button onclick="openChat('${currentLanguage==='en'?veg.name.en:veg.name.ta}')">💬 Ask</button>
+`;
+grid.appendChild(card);
+});
+}
+
+function openChat(vegName){
+startFarmerChat(currentExpertId || 'Soil Expert Ilamaran');
+}
+
+let currentExpertId = '';
+
+function startExpertChat(expert){
+currentExpertId = expert;
+document.getElementById('chat-input').placeholder='Send your expert advice...';
+addMessage('system','You are connected as Expert');
+showScreen('chat-interface');
+}
+
+function startFarmerChat(expert){
+currentExpertId = expert;
+document.getElementById('chat-input').placeholder='Ask your questions...';
+addMessage('system','You are connected to '+expert);
+showScreen('chat-interface');
+}
+
+function sendMessage(){
+const input=document.getElementById('chat-input'); // ✅ Fixed selector
+const text=input.value.trim();
+if(!text) return;
+if(isExpert) addMessage('expert',text);
+else addMessage('user',text);
+input.value='';
+displayMessages();
+}
+
+function addMessage(sender,text){
+const t=new Date().toLocaleTimeString();
+chatMessages.push({ sender, text, timestamp:t });
+}
+
+function displayMessages(){
+const box=document.getElementById('chat-messages');
+box.innerHTML='';
+chatMessages.forEach(m=>{
+let bubbleClass='bubble-other';
+if(m.sender==='user') bubbleClass='bubble-user';
+if(m.sender==='expert') bubbleClass='bubble-expert';
+if(m.sender==='system') bubbleClass='bubble-system';
+
+const div=document.createElement('div');
+div.innerHTML=`
+<div class="chat-bubble ${bubbleClass}">${m.text}</div>
+<div class="timestamp">${m.timestamp}</div>
+`;
+box.appendChild(div);
+});
+box.scrollTop=box.scrollHeight;
+}
+
+function showScreen(id){
+const cur=document.querySelector('.screen:not(.hidden)');
+if(cur && cur.id!==id) screenHistory.push(cur.id);
+document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+document.getElementById(id).classList.remove('hidden');
+}
+
+function goBack(){
+if(!screenHistory.length) return;
+const id=screenHistory.pop();
+document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
+document.getElementById(id).classList.remove('hidden');
+}
+</script>
+
+</body>
+</html>
